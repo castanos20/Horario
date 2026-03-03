@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendario Semanal</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --accent: #f5a623;
+    --accent2: #e8882a;
+    --text: #e8e8f0;
+    --text-muted: #7a7a9a;
+    --border: #2a2a4a;
+    --today: #f5a623;
+    --event-bg: #f5a623;
+    --event-text: #1a1a2e;
+    --grid-line: #1e1e3a;
+    --hour-w: 60px;
+    --col-w: 1fr;
+    --row-h: 60px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  .nav-btns {
+    display: flex;
+    gap: 4px;
+    margin-left: 8px;
+  }
+
+  .nav-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+
+  .nav-btn:hover { background: var(--border); }
+
+  .month-label {
+    font-size: 18px;
+    font-weight: 500;
+    min-width: 180px;
+    color: var(--text);
+  }
+
+  .today-btn {
+    background: var(--accent);
+    color: var(--event-text);
+    border: none;
+    padding: 7px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    margin-left: auto;
+    transition: all 0.15s;
+  }
+
+  .today-btn:hover { background: var(--accent2); }
+
+  .add-btn {
+    background: var(--surface2);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 7px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+
+  .add-btn:hover { background: var(--accent); color: var(--event-text); }
+
+  .save-btn {
+    background: #2a2a4a;
+    color: #7a7a9a;
+    border: 1px solid var(--border);
+    padding: 7px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .save-btn:hover { background: #1e3a1e; color: #42b883; border-color: #42b883; }
+  .save-btn.saved { background: #1e3a1e; color: #42b883; border-color: #42b883; }
+
+  /* CALENDAR GRID */
+  .calendar-wrap {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Day headers */
+  .day-headers {
+    display: grid;
+    grid-template-columns: var(--hour-w) repeat(7, var(--col-w));
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .day-header {
+    padding: 12px 0;
+    text-align: center;
+  }
+
+  .day-name {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .day-num {
+    font-size: 22px;
+    font-weight: 500;
+    margin-top: 2px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 4px auto 0;
+    border-radius: 50%;
+    transition: background 0.15s;
+  }
+
+  .day-num.today {
+    background: var(--accent);
+    color: var(--event-text);
+    font-weight: 700;
+  }
+
+  /* Scrollable body */
+  .grid-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  .grid-body::-webkit-scrollbar { width: 6px; }
+  .grid-body::-webkit-scrollbar-track { background: var(--surface); }
+  .grid-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .time-grid {
+    display: grid;
+    grid-template-columns: var(--hour-w) repeat(7, var(--col-w));
+    position: relative;
+  }
+
+  .hour-label {
+    padding: 0 10px 0 0;
+    height: var(--row-h);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding-top: 2px;
+    border-right: 1px solid var(--border);
+  }
+
+  .day-col {
+    border-right: 1px solid var(--grid-line);
+    position: relative;
+  }
+
+  .hour-cell {
+    height: var(--row-h);
+    border-bottom: 1px solid var(--grid-line);
+    position: relative;
+  }
+
+  .hour-cell:hover { background: rgba(245,166,35,0.03); }
+
+  /* Events */
+  .event {
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    background: var(--event-bg);
+    color: var(--event-text);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    overflow: hidden;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(245,166,35,0.3);
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .event:hover {
+    box-shadow: 0 4px 16px rgba(245,166,35,0.5);
+    transform: scale(1.01);
+  }
+
+  .event .ev-title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .event .ev-sub { font-weight: 400; font-size: 11px; opacity: 0.8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Color variants */
+  .event.blue { background: #4e8ef7; box-shadow: 0 2px 8px rgba(78,142,247,0.3); }
+  .event.blue:hover { box-shadow: 0 4px 16px rgba(78,142,247,0.5); }
+  .event.green { background: #42b883; box-shadow: 0 2px 8px rgba(66,184,131,0.3); color: #fff; }
+  .event.green:hover { box-shadow: 0 4px 16px rgba(66,184,131,0.5); }
+  .event.purple { background: #a78bfa; box-shadow: 0 2px 8px rgba(167,139,250,0.3); color: #1a1a2e; }
+  .event.pink { background: #f472b6; box-shadow: 0 2px 8px rgba(244,114,182,0.3); color: #1a1a2e; }
+  .event.red { background: #f87171; box-shadow: 0 2px 8px rgba(248,113,113,0.3); color: #1a1a2e; }
+
+  /* Current time line */
+  .time-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  .time-line::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: -4px;
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    width: 400px;
+    transform: translateY(20px);
+    transition: transform 0.2s;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--accent);
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .form-group input, .form-group select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--accent);
+  }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .color-picker {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .color-opt {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.15s;
+  }
+
+  .color-opt.selected { border-color: white; transform: scale(1.15); }
+  .color-opt[data-c="orange"] { background: #f5a623; }
+  .color-opt[data-c="blue"] { background: #4e8ef7; }
+  .color-opt[data-c="green"] { background: #42b883; }
+  .color-opt[data-c="purple"] { background: #a78bfa; }
+  .color-opt[data-c="pink"] { background: #f472b6; }
+  .color-opt[data-c="red"] { background: #f87171; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+  }
+
+  .btn-cancel {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 8px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+
+  .btn-cancel:hover { border-color: var(--text-muted); color: var(--text); }
+
+  .btn-save {
+    background: var(--accent);
+    color: var(--event-text);
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+
+  .btn-save:hover { background: var(--accent2); }
+
+  .btn-delete {
+    background: rgba(248,113,113,0.15);
+    color: #f87171;
+    border: 1px solid rgba(248,113,113,0.3);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    margin-right: auto;
+    transition: all 0.15s;
+  }
+
+  .btn-delete:hover { background: rgba(248,113,113,0.3); }
+
+  /* Event detail popup */
+  .ev-popup {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    min-width: 220px;
+    z-index: 50;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    display: none;
+  }
+
+  .ev-popup.show { display: block; }
+  .ev-popup h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .ev-popup .ep-time { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-family: 'DM Mono', monospace; }
+  .ev-popup .ep-sub { font-size: 12px; color: var(--text-muted); }
+  .ev-popup .ep-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .ep-edit, .ep-del {
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    transition: all 0.15s;
+  }
+  .ep-edit { background: var(--accent); color: var(--event-text); }
+  .ep-del { background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+  .ep-del:hover { background: rgba(248,113,113,0.3); }
+
+  /* Recurring toggle */
+  .recurring-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 14px;
+    user-select: none;
+  }
+  .recurring-toggle:hover { border-color: var(--accent); }
+  .recurring-toggle.active { border-color: var(--accent); background: rgba(245,166,35,0.08); }
+  .toggle-switch {
+    width: 36px; height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+  .recurring-toggle.active .toggle-switch { background: var(--accent); }
+  .recurring-toggle.active .toggle-switch::after { transform: translateX(16px); }
+  .toggle-label { font-size: 13px; color: var(--text-muted); }
+  .recurring-toggle.active .toggle-label { color: var(--accent); font-weight: 600; }
+
+  /* Badge en evento recurrente */
+  .ev-recurring-badge {
+    position: absolute;
+    top: 3px; right: 5px;
+    font-size: 9px;
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">📅 Horario</span>
+  <div class="nav-btns">
+    <button class="nav-btn" id="prevWeek">‹</button>
+    <button class="nav-btn" id="nextWeek">›</button>
+  </div>
+  <span class="month-label" id="monthLabel"></span>
+  <button class="today-btn" id="todayBtn">Hoy</button>
+  <button class="add-btn" id="addBtn">+ Agregar</button>
+  <button class="save-btn" id="saveFileBtn">💾 Guardar archivo</button>
+</div>
+
+<div class="calendar-wrap">
+  <div class="day-headers" id="dayHeaders">
+    <div></div>
+  </div>
+  <div class="grid-body" id="gridBody">
+    <div class="time-grid" id="timeGrid"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Nueva Clase</h2>
+    <div class="form-group">
+      <label>Nombre de la clase</label>
+      <input type="text" id="evName" placeholder="Ej: Cálculo Integral">
+    </div>
+    <div class="form-group">
+      <label>Salón / Ubicación</label>
+      <input type="text" id="evLocation" placeholder="Ej: Bloque 11-12, Aula 3">
+    </div>
+    <!-- Toggle recurrencia -->
+    <div class="recurring-toggle" id="recurringToggle">
+      <div class="toggle-switch"></div>
+      <span class="toggle-label">🔁 Se repite cada semana</span>
+    </div>
+    <!-- Día (para recurrentes) -->
+    <div class="form-row" id="dayPickerRow">
+      <div class="form-group">
+        <label>Día de la semana</label>
+        <select id="evDay">
+          <option value="0">Domingo</option>
+          <option value="1">Lunes</option>
+          <option value="2">Martes</option>
+          <option value="3">Miércoles</option>
+          <option value="4">Jueves</option>
+          <option value="5">Viernes</option>
+          <option value="6">Sábado</option>
+        </select>
+      </div>
+      <div class="form-group"></div>
+    </div>
+    <!-- Fecha exacta (para actividades) -->
+    <div class="form-group" id="datePickerRow" style="display:none">
+      <label>Fecha exacta</label>
+      <input type="date" id="evDate">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Inicio</label>
+        <input type="time" id="evStart" value="08:00">
+      </div>
+      <div class="form-group">
+        <label>Fin</label>
+        <input type="time" id="evEnd" value="10:00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Color</label>
+      <div class="color-picker" id="colorPicker">
+        <div class="color-opt selected" data-c="orange"></div>
+        <div class="color-opt" data-c="blue"></div>
+        <div class="color-opt" data-c="green"></div>
+        <div class="color-opt" data-c="purple"></div>
+        <div class="color-opt" data-c="pink"></div>
+        <div class="color-opt" data-c="red"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-delete" id="btnDelete" style="display:none">Eliminar</button>
+      <button class="btn-cancel" id="btnCancel">Cancelar</button>
+      <button class="btn-save" id="btnSave">Guardar</button>
+    </div>
+  </div>
+</div>
+
+  <div class="ev-popup" id="evPopup">
+  <h3 id="epTitle"></h3>
+  <div class="ep-time" id="epTime"></div>
+  <div class="ep-sub" id="epSub"></div>
+  <div style="font-size:11px;color:var(--text-muted);margin-top:4px" id="epRecurring"></div>
+  <div class="ep-actions">
+    <button class="ep-edit" id="epEdit">Editar</button>
+    <button class="ep-del" id="epDel">Eliminar</button>
+  </div>
+</div>
+
+<script>
+const DAYS_ES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const HOURS = Array.from({length: 24}, (_, i) => i); // 12am - 11pm
+
+let weekOffset = 0;
+let selectedColor = 'orange';
+let editingId = null;
+let isRecurring = true;
+let events = /*EVENTS_DATA*/[]/*END_EVENTS*/;
+
+// Toggle recurrencia
+const recurringToggle = document.getElementById('recurringToggle');
+recurringToggle.addEventListener('click', () => {
+  isRecurring = !isRecurring;
+  recurringToggle.classList.toggle('active', isRecurring);
+  document.getElementById('dayPickerRow').style.display = isRecurring ? '' : 'none';
+  document.getElementById('datePickerRow').style.display = isRecurring ? 'none' : '';
+  document.getElementById('modalTitle').textContent = editingId
+    ? (isRecurring ? 'Editar Clase' : 'Editar Actividad')
+    : (isRecurring ? 'Nueva Clase' : 'Nueva Actividad');
+});
+
+async function save() {
+  try {
+    await fetch('http://localhost:8989/eventos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(events)
+    });
+  } catch(e) {
+    // Si el servidor no está corriendo, no hace nada
+  }
+}
+
+async function cargarEventos() {
+  try {
+    const res = await fetch('http://localhost:8989/eventos');
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      events = data;
+    }
+  } catch(e) {
+    // Sin servidor, usa los eventos embebidos
+  }
+  render();
+}
+
+function getWeekStart() {
+  const today = new Date();
+  const d = new Date(today);
+  d.setDate(today.getDate() - today.getDay() + weekOffset * 7);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function render() {
+  const weekStart = getWeekStart();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Month label
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+  let label = MONTHS_ES[weekStart.getMonth()];
+  if (weekStart.getMonth() !== weekEnd.getMonth()) label += ' – ' + MONTHS_ES[weekEnd.getMonth()];
+  label += ' ' + weekEnd.getFullYear();
+  document.getElementById('monthLabel').textContent = label;
+
+  // Day headers
+  const dh = document.getElementById('dayHeaders');
+  dh.innerHTML = '<div></div>';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
+    const isToday = d.getTime() === today.getTime();
+    dh.innerHTML += `<div class="day-header">
+      <div class="day-name">${DAYS_ES[d.getDay()]}</div>
+      <div class="day-num ${isToday ? 'today' : ''}">${d.getDate()}</div>
+    </div>`;
+  }
+
+  // Time grid
+  const tg = document.getElementById('timeGrid');
+  tg.innerHTML = '';
+
+  // Build day date strings for this week
+  const dayDates = Array.from({length: 7}, (_, i) => {
+    const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+
+  // Hour rows
+  for (let h = 0; h < HOURS.length; h++) {
+    const hr = HOURS[h];
+    // Hour label
+    const lbl = document.createElement('div');
+    lbl.className = 'hour-label';
+    lbl.textContent = hr === 0 ? '12 am' : hr < 12 ? hr + ' am' : hr === 12 ? '12 pm' : (hr-12) + ' pm';
+    tg.appendChild(lbl);
+
+    for (let d = 0; d < 7; d++) {
+      const cell = document.createElement('div');
+      cell.className = 'day-col';
+      const hcell = document.createElement('div');
+      hcell.className = 'hour-cell';
+      hcell.dataset.day = d;
+      hcell.dataset.hour = hr;
+      hcell.addEventListener('click', () => openModal(null, dayDates[d], hr));
+      cell.appendChild(hcell);
+      tg.appendChild(cell);
+    }
+  }
+
+  // Render events
+  const startHour = HOURS[0];
+  events.forEach(ev => {
+    let dayIdx;
+    if (ev.recurring) {
+      // Buscar la columna que coincide con el día de la semana
+      dayIdx = dayDates.findIndex((dateStr, i) => {
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.getDay() === ev.dayOfWeek;
+      });
+    } else {
+      dayIdx = dayDates.indexOf(ev.date);
+    }
+    if (dayIdx === -1) return;
+
+    const [sh, sm] = ev.start.split(':').map(Number);
+    const [eh, em] = ev.end.split(':').map(Number);
+    const topPct = (sh + sm/60) * 60; // px desde medianoche
+    const height = ((eh - sh) + (em - sm)/60) * 60;
+
+    // Find the column cells for this day
+    const cols = tg.querySelectorAll(`.day-col`);
+    // cols index: row * 7 + dayIdx
+    // We need to place event absolutely. Let's use a different approach - overlay per day column.
+    // Actually let me use a overlay div on the grid.
+
+    const evDiv = document.createElement('div');
+    evDiv.className = `event ${ev.color !== 'orange' ? ev.color : ''}`;
+    evDiv.style.top = topPct + 'px';
+    evDiv.style.height = Math.max(height, 20) + 'px';
+    evDiv.innerHTML = `<div class="ev-title">${ev.name}</div>${ev.location ? `<div class="ev-sub">${ev.location}</div>` : ''}${ev.recurring ? '<span class="ev-recurring-badge">🔁</span>' : ''}`;
+    evDiv.addEventListener('click', (e) => { e.stopPropagation(); showPopup(ev, e); });
+
+    // We need to place inside the right column
+    // Build a column overlay approach
+    const overlay = getOrCreateColOverlay(tg, dayIdx);
+    evDiv.style.position = 'absolute';
+    evDiv.style.left = '3px';
+    evDiv.style.right = '3px';
+    overlay.appendChild(evDiv);
+  });
+
+  // Current time line
+  const now = new Date();
+  const curDayIdx = dayDates.indexOf(now.toISOString().split('T')[0]);
+  if (curDayIdx !== -1) {
+    const overlay = getOrCreateColOverlay(tg, curDayIdx);
+    const topPx = (now.getHours() + now.getMinutes()/60) * 60;
+    const line = document.createElement('div');
+    line.className = 'time-line';
+    line.style.top = topPx + 'px';
+    overlay.appendChild(line);
+  }
+
+  // Scroll to 7am (a bit before current time)
+  const scrollTarget = Math.max(0, ((now.getHours() - 1)) * 60);
+  document.getElementById('gridBody').scrollTop = scrollTarget;
+}
+
+function getOrCreateColOverlay(tg, dayIdx) {
+  let ov = tg.querySelector(`.col-overlay[data-col="${dayIdx}"]`);
+  if (ov) return ov;
+  ov = document.createElement('div');
+  ov.className = 'col-overlay';
+  ov.dataset.col = dayIdx;
+  ov.style.cssText = `position:absolute;top:0;bottom:0;pointer-events:none;`;
+
+  // Calculate left position based on grid
+  // hour col = 60px, each day col = (100% - 60px) / 7
+  ov.style.left = `calc(60px + ${dayIdx} * ((100% - 60px) / 7))`;
+  ov.style.width = `calc((100% - 60px) / 7)`;
+
+  // Make event children pointer-events auto
+  ov.addEventListener('click', () => {}, true);
+  ov.style.pointerEvents = 'none';
+
+  // Allow clicks on events inside
+  const style = document.createElement('style');
+  if (!document.getElementById('overlay-style')) {
+    style.id = 'overlay-style';
+    style.textContent = '.col-overlay { pointer-events: none; } .col-overlay .event { pointer-events: all; }';
+    document.head.appendChild(style);
+  }
+
+  tg.style.position = 'relative';
+  tg.appendChild(ov);
+  return ov;
+}
+
+// MODAL
+function openModal(ev, date, hour) {
+  editingId = ev ? ev.id : null;
+
+  // Determinar si es recurrente
+  isRecurring = ev ? (ev.recurring !== false) : true;
+  recurringToggle.classList.toggle('active', isRecurring);
+  document.getElementById('dayPickerRow').style.display = isRecurring ? '' : 'none';
+  document.getElementById('datePickerRow').style.display = isRecurring ? 'none' : '';
+
+  document.getElementById('modalTitle').textContent = ev
+    ? (isRecurring ? 'Editar Clase' : 'Editar Actividad')
+    : (isRecurring ? 'Nueva Clase' : 'Nueva Actividad');
+
+  document.getElementById('evName').value = ev ? ev.name : '';
+  document.getElementById('evLocation').value = ev ? ev.location : '';
+  
+  if (isRecurring) {
+    if (date) {
+      const d = new Date(date + 'T00:00:00');
+      document.getElementById('evDay').value = d.getDay();
+    } else if (ev) {
+      document.getElementById('evDay').value = ev.dayOfWeek ?? 1;
+    }
+  } else {
+    // Actividad con fecha exacta
+    if (ev && ev.date) {
+      document.getElementById('evDate').value = ev.date;
+    } else if (date) {
+      document.getElementById('evDate').value = date;
+    } else {
+      document.getElementById('evDate').value = new Date().toISOString().split('T')[0];
+    }
+  }
+
+  document.getElementById('evStart').value = ev ? ev.start : (hour ? String(hour).padStart(2,'0') + ':00' : '08:00');
+  document.getElementById('evEnd').value = ev ? ev.end : (hour ? String(hour+2).padStart(2,'0') + ':00' : '10:00');
+  
+  const col = ev ? ev.color : 'orange';
+  selectedColor = col;
+  document.querySelectorAll('.color-opt').forEach(o => {
+    o.classList.toggle('selected', o.dataset.c === col);
+  });
+
+  document.getElementById('btnDelete').style.display = ev ? 'block' : 'none';
+  document.getElementById('modalOverlay').classList.add('open');
+  hidePopup();
+}
+
+document.getElementById('btnCancel').onclick = closeModal;
+document.getElementById('modalOverlay').onclick = (e) => { if (e.target === e.currentTarget) closeModal(); };
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  editingId = null;
+}
+
+document.querySelectorAll('.color-opt').forEach(opt => {
+  opt.onclick = () => {
+    selectedColor = opt.dataset.c;
+    document.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+  };
+});
+
+document.getElementById('btnSave').onclick = () => {
+  const name = document.getElementById('evName').value.trim();
+  if (!name) { document.getElementById('evName').focus(); return; }
+
+  let evData;
+  if (isRecurring) {
+    const dayOfWeek = parseInt(document.getElementById('evDay').value);
+    evData = {
+      id: editingId || Date.now(),
+      name,
+      location: document.getElementById('evLocation').value.trim(),
+      recurring: true,
+      dayOfWeek,
+      start: document.getElementById('evStart').value,
+      end: document.getElementById('evEnd').value,
+      color: selectedColor,
+    };
+  } else {
+    const date = document.getElementById('evDate').value;
+    if (!date) { document.getElementById('evDate').focus(); return; }
+    evData = {
+      id: editingId || Date.now(),
+      name,
+      location: document.getElementById('evLocation').value.trim(),
+      recurring: false,
+      date,
+      start: document.getElementById('evStart').value,
+      end: document.getElementById('evEnd').value,
+      color: selectedColor,
+    };
+  }
+
+  if (editingId) {
+    events = events.map(e => e.id === editingId ? evData : e);
+  } else {
+    events.push(evData);
+  }
+
+  render(); closeModal(); save();
+};
+
+document.getElementById('btnDelete').onclick = () => {
+  if (editingId) {
+    events = events.filter(e => e.id !== editingId);
+    render(); closeModal(); save();
+  }
+};
+
+// Popup
+function showPopup(ev, e) {
+  const p = document.getElementById('evPopup');
+  document.getElementById('epTitle').textContent = ev.name;
+  document.getElementById('epTime').textContent = ev.start + ' – ' + ev.end;
+  document.getElementById('epSub').textContent = ev.location;
+  document.getElementById('epRecurring').textContent = ev.recurring ? '🔁 Se repite cada semana' : '📌 Actividad única';
+  
+  const rect = e.target.closest('.event').getBoundingClientRect();
+  p.style.left = Math.min(rect.right + 8, window.innerWidth - 240) + 'px';
+  p.style.top = Math.min(rect.top, window.innerHeight - 160) + 'px';
+  p.classList.add('show');
+
+  document.getElementById('epEdit').onclick = () => { hidePopup(); openModal(ev); };
+  document.getElementById('epDel').onclick = () => {
+    events = events.filter(e => e.id !== ev.id);
+    render(); hidePopup(); save();
+  };
+}
+
+function hidePopup() {
+  document.getElementById('evPopup').classList.remove('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.ev-popup') && !e.target.closest('.event')) hidePopup();
+});
+
+document.getElementById('prevWeek').onclick = () => { weekOffset--; render(); };
+document.getElementById('nextWeek').onclick = () => { weekOffset++; render(); };
+document.getElementById('todayBtn').onclick = () => { weekOffset = 0; render(); };
+document.getElementById('addBtn').onclick = () => openModal(null);
+document.getElementById('saveFileBtn').onclick = async () => {
+  await save();
+  const btn = document.getElementById('saveFileBtn');
+  btn.textContent = '✅ Guardado';
+  btn.classList.add('saved');
+  setTimeout(() => { btn.textContent = '💾 Guardar'; btn.classList.remove('saved'); }, 2000);
+};
+
+cargarEventos();
+
+// Heartbeat: avisa al servidor que la pestaña sigue abierta
+setInterval(() => {
+  fetch('http://localhost:8989/ping').catch(() => {});
+}, 3000);
+</script>
+</body>
+</html>
